@@ -18,9 +18,19 @@ import time
 # Import the macro bias engine
 try:
     from macro_bias_engine import MacroBiasEngine, OutputFormatter
-except ImportError:
-    st.error("❌ Error: macro_bias_engine.py not found. Please ensure it's in the same directory.")
-    st.stop()
+    from historical_tracker import HistoricalBiasTracker
+    TRACKER_AVAILABLE = True
+except ImportError as e:
+    if 'historical_tracker' in str(e):
+        st.warning("⚠️ Historical tracker not available. Upload historical_tracker.py to enable history features.")
+        TRACKER_AVAILABLE = False
+        # Create dummy class
+        class HistoricalBiasTracker:
+            def save_bias_reading(self, results): pass
+            def get_history(self, days): return pd.DataFrame()
+    else:
+        st.error("❌ Error: macro_bias_engine.py not found. Please ensure it's in the same directory.")
+        st.stop()
 
 # ============================================================================
 # PAGE CONFIGURATION
@@ -161,6 +171,25 @@ with st.sidebar:
     
     st.markdown("---")
     
+    # Historical Data Section
+    if TRACKER_AVAILABLE:
+        st.markdown("### 📊 Historical Data")
+        
+        show_history = st.checkbox("📅 View Past Bias Readings", value=False)
+        
+        if show_history:
+            history_days = st.slider("Days to show", 7, 90, 30)
+            
+            tracker = HistoricalBiasTracker()
+            history_df = tracker.get_history(days=history_days)
+            
+            if len(history_df) > 0:
+                st.caption(f"📈 Showing last {len(history_df)} days")
+            else:
+                st.caption("📭 No historical data yet")
+    
+    st.markdown("---")
+    
     # Information
     st.markdown("### ℹ️ About")
     st.info("""
@@ -199,6 +228,14 @@ try:
     with st.spinner("🔄 Analyzing macro factors... This may take 30-60 seconds..."):
         results = run_analysis(custom_weights)
         summary = results['summary']
+        
+        # Save to historical database
+        if TRACKER_AVAILABLE:
+            try:
+                tracker = HistoricalBiasTracker()
+                tracker.save_bias_reading(results)
+            except Exception as e:
+                pass  # Silently fail if tracking fails
         
 except Exception as e:
     st.error(f"❌ Error running analysis: {e}")
@@ -551,6 +588,131 @@ with col2:
     else:
         for note in risk_notes:
             st.warning(note)
+
+st.markdown("---")
+
+# ============================================================================
+# HISTORICAL BIAS VIEW (NEW!)
+# ============================================================================
+
+if TRACKER_AVAILABLE:
+    st.subheader("📅 Historical Bias Readings")
+    
+    # Create tabs for different history views
+    hist_tab1, hist_tab2, hist_tab3 = st.columns([1, 1, 1])
+    
+    with hist_tab1:
+        view_days = st.selectbox("Time Period", [7, 14, 30, 60, 90], index=2, key="history_days")
+    
+    with hist_tab2:
+        show_chart = st.checkbox("Show Chart", value=True)
+    
+    with hist_tab3:
+        show_stats = st.checkbox("Show Statistics", value=False)
+    
+    tracker = HistoricalBiasTracker()
+    history_df = tracker.get_history(days=view_days)
+    
+    if len(history_df) > 0:
+        
+        # Historical chart
+        if show_chart:
+            st.markdown("#### 📈 Bias Strength Over Time")
+            
+            import plotly.graph_objects as go
+            
+            fig_history = go.Figure()
+            
+            # Add bias strength line
+            fig_history.add_trace(go.Scatter(
+                x=history_df['date'],
+                y=history_df['bias_strength'],
+                mode='lines+markers',
+                name='Bias Strength',
+                line=dict(color='#1f77b4', width=2),
+                marker=dict(size=6),
+                hovertemplate='<b>%{x}</b><br>Strength: %{y:.1f}%<extra></extra>'
+            ))
+            
+            # Add zero line
+            fig_history.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+            
+            # Add bullish/bearish zones
+            fig_history.add_hrect(y0=15, y1=100, fillcolor="green", opacity=0.1, line_width=0)
+            fig_history.add_hrect(y0=-100, y1=-15, fillcolor="red", opacity=0.1, line_width=0)
+            
+            fig_history.update_layout(
+                height=300,
+                margin=dict(l=0, r=0, t=10, b=0),
+                xaxis_title="Date",
+                yaxis_title="Bias Strength (%)",
+                showlegend=False,
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                hovermode='x unified'
+            )
+            
+            st.plotly_chart(fig_history, use_container_width=True)
+        
+        # Statistics
+        if show_stats:
+            st.markdown("#### 📊 Historical Statistics")
+            
+            stats = tracker.get_statistics(days=view_days)
+            
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Days Analyzed", stats['days_analyzed'])
+                st.metric("Avg Confidence", f"{stats['average_metrics']['confidence']:.1f}%")
+            
+            with col2:
+                st.metric("Bullish Days", stats['bias_distribution']['bullish_days'])
+                st.metric("Bearish Days", stats['bias_distribution']['bearish_days'])
+            
+            with col3:
+                st.metric("Neutral Days", stats['bias_distribution']['neutral_days'])
+                st.metric("Avg Volatility", f"{stats['average_metrics']['volatility']:.1f}%")
+            
+            # Strongest signals
+            st.markdown("**Strongest Signals:**")
+            st.info(f"🟢 Most Bullish: {stats['strongest_signals']['most_bullish']['date']} "
+                   f"({stats['strongest_signals']['most_bullish']['strength']:+.1f}%)")
+            st.error(f"🔴 Most Bearish: {stats['strongest_signals']['most_bearish']['date']} "
+                    f"({stats['strongest_signals']['most_bearish']['strength']:+.1f}%)")
+        
+        # Historical table
+        st.markdown("#### 📋 Recent Bias Readings")
+        
+        # Format the display
+        display_df = history_df[['date', 'overall_bias', 'bias_strength', 
+                                'bias_confidence', 'volatility', 'regime']].copy()
+        display_df.columns = ['Date', 'Bias', 'Strength %', 'Confidence %', 'Volatility %', 'Regime']
+        
+        # Color code the bias column
+        def color_bias(val):
+            if val == 'Bullish':
+                return 'background-color: #c8e6c9'
+            elif val == 'Bearish':
+                return 'background-color: #ffcdd2'
+            else:
+                return 'background-color: #fff9c4'
+        
+        styled_history = display_df.style.applymap(color_bias, subset=['Bias'])
+        
+        st.dataframe(styled_history, use_container_width=True, height=300)
+        
+        # Export history
+        csv_history = history_df.to_csv(index=False)
+        st.download_button(
+            label="📥 Download History (CSV)",
+            data=csv_history,
+            file_name=f"bias_history_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+    
+    else:
+        st.info("📭 No historical data available yet. Bias readings are saved automatically each time you run the analysis. Check back after running a few times!")
 
 # ============================================================================
 # EXPORT OPTIONS
