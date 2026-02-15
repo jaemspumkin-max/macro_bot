@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Macro Bias Engine - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .metric-value.bullish {
+            color: #10b981;
+        }
+
+        .metric-value.bearish {
+            color: #ef4444;
+        }
+
+        .metric-value.neutral {
+            color: #6b7280;
+        }
+
+        .metric-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-low {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-high {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #1f2937;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 10px;
+        }
+
+        .factors-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .factor-item {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 15px;
+            align-items: center;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #e5e7eb;
+            transition: all 0.2s;
+        }
+
+        .factor-item:hover {
+            background: #f3f4f6;
+            border-left-color: #667eea;
+        }
+
+        .factor-item.bullish {
+            border-left-color: #10b981;
+        }
+
+        .factor-item.bearish {
+            border-left-color: #ef4444;
+        }
+
+        .factor-name {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .factor-direction {
+            text-align: center;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .direction-bullish {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .direction-bearish {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .direction-neutral {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .factor-score {
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .factor-contribution {
+            text-align: right;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s ease;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:active {
+            transform: scale(0.95);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .timestamp {
+            text-align: center;
+            color: #6b7280;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .factor-item {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+
+            .factor-contribution {
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌍 Macro Bias Engine</h1>
+            <p>Real-Time Quantitative Market Analysis</p>
+        </div>
+
+        <div id="loading" class="loading">
+            Loading market data...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="dashboard" style="display: none;">
+            <!-- Metrics Grid -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">Overall Bias</div>
+                    <div class="metric-value" id="overall-bias">-</div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Bias Strength</div>
+                    <div class="metric-value" id="bias-strength">-</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="strength-bar"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Confidence</div>
+                    <div class="metric-value" id="confidence">-</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="confidence-bar"></div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-label">Market Regime</div>
+                    <div class="metric-value" id="regime">-</div>
+                    <div class="metric-label">Volatility: <span id="volatility">-</span></div>
+                </div>
+            </div>
+
+            <!-- Factors Breakdown -->
+            <div class="main-content">
+                <h2 class="section-title">📊 Factor Breakdown</h2>
+                <div class="factors-list" id="factors-list">
+                    <!-- Factors will be inserted here -->
+                </div>
+                
+                <div class="timestamp" id="timestamp">-</div>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api/bias';
+
+        async function fetchData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('dashboard').style.display = 'none';
+                document.getElementById('error').style.display = 'none';
+
+                const response = await fetch(API_URL);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || 'Unknown error');
+                }
+
+                updateDashboard(result.data);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('dashboard').style.display = 'block';
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = 
+                    `Error loading data: ${error.message}. Make sure the Flask API is running on port 5000.`;
+            }
+        }
+
+        function updateDashboard(data) {
+            // Update overall bias
+            const biasElement = document.getElementById('overall-bias');
+            biasElement.textContent = data.overall_bias;
+            biasElement.className = 'metric-value ' + data.overall_bias.toLowerCase();
+
+            // Update bias strength
+            const strengthValue = data.bias_strength;
+            document.getElementById('bias-strength').textContent = 
+                (strengthValue > 0 ? '+' : '') + strengthValue.toFixed(1) + '%';
+            document.getElementById('strength-bar').style.width = Math.abs(strengthValue) + '%';
+
+            // Update confidence
+            document.getElementById('confidence').textContent = 
+                data.bias_confidence.toFixed(1) + '%';
+            document.getElementById('confidence-bar').style.width = 
+                data.bias_confidence + '%';
+
+            // Update regime
+            const regime = data.regime;
+            const regimeElement = document.getElementById('regime');
+            regimeElement.innerHTML = `<span class="metric-badge badge-${
+                regime.includes('Low') ? 'low' : regime.includes('High') ? 'high' : 'medium'
+            }">${regime}</span>`;
+            
+            document.getElementById('volatility').textContent = 
+                data.volatility.toFixed(1) + '%';
+
+            // Update factors
+            const factorsList = document.getElementById('factors-list');
+            factorsList.innerHTML = '';
+
+            data.factors.forEach(factor => {
+                const factorDiv = document.createElement('div');
+                factorDiv.className = 'factor-item ' + factor.direction.toLowerCase();
+                
+                const directionClass = 'direction-' + factor.direction.toLowerCase();
+                
+                factorDiv.innerHTML = `
+                    <div class="factor-name">${formatFactorName(factor.name)}</div>
+                    <div class="factor-direction ${directionClass}">${factor.direction}</div>
+                    <div class="factor-score">${factor.score.toFixed(2)}</div>
+                    <div class="factor-contribution">${factor.contribution.toFixed(1)}%</div>
+                `;
+                
+                factorsList.appendChild(factorDiv);
+            });
+
+            // Update timestamp
+            const timestamp = new Date(data.timestamp);
+            document.getElementById('timestamp').textContent = 
+                `Last updated: ${timestamp.toLocaleString()}`;
+        }
+
+        function formatFactorName(name) {
+            return name
+                .replace(/_/g, ' ')
+                .replace(/10Y/g, '10-Year')
+                .replace(/DXY/g, 'US Dollar')
+                .replace(/M2/g, 'M2 Money Supply')
+                .replace(/BAA AAA/g, 'Credit Spreads (BAA-AAA)')
+                .replace(/VIX/g, 'VIX');
+        }
+
+        async function refreshData() {
+            await fetchData();
+        }
+
+        // Initial load
+        fetchData();
+
+        // Auto-refresh every 5 minutes
+        setInterval(fetchData, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
